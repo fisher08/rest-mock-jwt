@@ -1,19 +1,22 @@
-const fs = require('fs')
-const bodyParser = require('body-parser')
-const jsonServer = require('json-server')
-const jwt = require('jsonwebtoken')
+const fs = require('fs');
+const bodyParser = require('body-parser');
+const jsonServer = require('json-server');
+const jwt = require('jsonwebtoken');
+const express = require('express');
+const routerReview = express.Router();
 
-const server = jsonServer.create()
-const router = jsonServer.router('./database.json')
-const userdb = JSON.parse(fs.readFileSync('./users.json', 'UTF-8'))
+const server = jsonServer.create();
+const router = jsonServer.router('./database.json');
+const userdb = JSON.parse(fs.readFileSync('./users.json', 'UTF-8'));
+const reviewsdb = JSON.parse(fs.readFileSync('./reviews.json', 'UTF-8'));
 
 server.use(bodyParser.urlencoded({extended: true}));
 server.use(bodyParser.json());
 server.use(jsonServer.defaults());
 
-const SECRET_KEY = '123456789'
+const SECRET_KEY = '123456789';
 
-const expiresIn = '1h'
+const expiresIn = '1h';
 
 // Create a token from a payload 
 function createToken(payload){
@@ -46,6 +49,39 @@ function createNewUser(email, password, name) {
         name,
         password
     }
+}
+
+function createReview(rate,
+                      text,
+                      id_user,
+                      id_entry) {
+    let maxIndex = 0;
+    reviewsdb.reviews.forEach(review => {
+        if (maxIndex < review.id) maxIndex = review.id;
+    });
+
+    return {
+        id: maxIndex + 1,
+        rate,
+        text,
+        id_user,
+        id_entry
+    }
+}
+
+function badRequest(res) {
+    const status = 400;
+    const message = 'Bad request';
+    res.status(status).json({
+        message
+    });
+}
+
+function isDigit(c) {
+    if ('0123456789'.indexOf(c) !== -1) {
+        return false;
+    }
+    return true;
 }
 
 
@@ -96,10 +132,6 @@ server.post('/auth/registration', (req, res) => {
     });
 })
 
-server.get('/api/users', (req, res) => {
-        res.status(200).json(userdb.users);
-    });
-
 server.use('/api', router);
 
 server.use(/^(?!\/auth).*$/,  (req, res, next) => {
@@ -117,7 +149,42 @@ server.use(/^(?!\/auth).*$/,  (req, res, next) => {
     const message = 'Error access_token is revoked'
     res.status(status).json({status, message})
   }
-})
+});
+
+
+routerReview.get("/reviews", function(req, res) {
+    console.log(reviewsdb.reviews);
+    res.send(reviewsdb.reviews);
+});
+
+routerReview.post("/reviews", function(req, res) {
+    const {
+        rate,
+        text,
+        id_user,
+        id_entry} = req.body;
+
+    reviewsdb.reviews.push(createReview(rate, text, id_user, id_entry));
+    json = JSON.stringify(reviewsdb, null, 4);
+
+    fs.writeFile('./reviews.json', json, (err) => {
+        if (err) throw err;
+        console.log('Reviews added');
+    });
+
+    res.send(reviewsdb.reviews[reviewsdb.reviews.length - 1]);
+});
+
+routerReview.get("/reviews/:id", function(req, res) {
+    if (isDigit(req.params.id)) {
+        badRequest(res);
+        return;
+    }
+    const review = reviewsdb.reviews.find((review) => review.id == req.params.id);
+    res.send(review);
+});
+
+server.use('/protected', routerReview);
 
 server.listen(3001, () => {
   console.log('Run Auth API Server')

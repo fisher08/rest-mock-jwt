@@ -1,0 +1,18 @@
+{
+    "reviews": [
+        {
+            "id": 1,
+            "rate": 2,
+            "text": 2,
+            "id_user": 2,
+            "id_entry": 2
+        },
+        {
+            "id": 2,
+            "rate": 3,
+            "text": 23,
+            "id_user": 23,
+            "id_entry": 23
+        }
+    ]
+}
